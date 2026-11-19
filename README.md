@@ -20,12 +20,11 @@ Drop-in compatible with both **Ollama** (`/chat`, `/api/chat`, `/api/embeddings`
    - Auto-downloads model weights if unavailable.
    - Embeddings are instantaneous (~10ms) and never trigger a vLLM model switch or interrupt running LLMs.
 
-3. **Master Model Catalog**:
-   - Manages all quantized local Safetensors models under:
-     - `/home/ror-technologies/Quantization/models` (Qwen 2.5 3B, 7B, 14B; FP16, FP8, INT4 AWQ)
-     - `/home/ror-technologies/IT-helpdesk-agent/quantized_models` (Llama 3.2 1B, 3B, Meta-Llama 3 8B; AWQ, BNB-4bit, BNB-8bit, GPTQ-4bit, GPTQ-8bit)
-     - HuggingFace local models (`meta-llama/Llama-3.2-1B-Instruct`, etc.)
-   - Master list exposed dynamically at `GET /api/models` for `platform-services`.
+3. **Master Model Catalog (`models.json`)**:
+   - Central source of truth on the GPU server for all model configurations.
+   - Rich metadata per model: `id`, `name` (clean UI-ready name), `type`, `size`, `quantization`, `local_or_pull`, `pull`, `enabled`, `default`, `advantages`, `disadvantages`, `good_for`, `path`, etc.
+   - **Dynamic Field Projection**: `GET /api/models?fields=id,name` returns only the requested fields, while omitting operational details (`pull`, `enabled`, `path`) to protect backend internals.
+   - Master defaults for LLM and embedding are defined in `models.json` with `"default": true`, requiring zero hardcoded names in code files.
 
 ---
 
@@ -55,10 +54,7 @@ ROUTER_HOST=0.0.0.0
 ROUTER_PORT=8080
 VLLM_INTERNAL_PORT=8001
 IDLE_UNLOAD_TIMEOUT=300
-DEFAULT_LLM_MODEL=Qwen2.5-7B-Instruct_INT4_AWQ
-DEFAULT_EMBED_MODEL=nomic-ai/nomic-embed-text-v1.5
-QWEN_MODELS_DIR=/home/ror-technologies/Quantization/models
-LLAMA_MODELS_DIR=/home/ror-technologies/IT-helpdesk-agent/quantized_models
+EMBEDDING_MODEL_ID=nomic-ai/nomic-embed-text-v1.5
 ```
 
 ### 4. Running the Router

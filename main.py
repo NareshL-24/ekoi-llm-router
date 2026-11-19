@@ -15,7 +15,8 @@ from api.routes_chat import router as chat_router
 from api.routes_embed import router as embed_router
 from api.routes_models import router as models_router
 from config import settings
-from models_catalog import list_models
+from embedding_service import embedding_service
+from models_catalog import get_default_model, list_models
 from vllm_controller import vllm_controller
 
 logging.basicConfig(
@@ -27,17 +28,20 @@ logger = logging.getLogger("ekoi-llm-router")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    def_llm = get_default_model("llm")
     logger.info("==================================================")
     logger.info("   Starting ekoi-llm-router (port %d)", settings.PORT)
-    logger.info("   Default LLM: %s", settings.DEFAULT_LLM_MODEL)
-    logger.info("   Default Embed: %s", settings.DEFAULT_EMBED_MODEL)
+    logger.info("   Default LLM: %s", def_llm.id if def_llm else "None")
+    logger.info("   Single Dedicated Embedder: %s", settings.EMBEDDING_MODEL_ID)
     logger.info("   Mock Mode: %s", settings.MOCK_MODE)
     logger.info("==================================================")
 
-    # Log discovered models
+    # Warmup and pull single dedicated embedding model on CPU
+    embedding_service.warmup()
+
+    # Log discovered LLMs
     llm_models = list_models("llm")
-    embed_models = list_models("embedding")
-    logger.info("Loaded %d LLMs and %d Embedding model(s) in catalog.", len(llm_models), len(embed_models))
+    logger.info("Loaded %d LLM(s) in catalog from models.json.", len(llm_models))
 
     yield
 

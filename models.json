@@ -1,0 +1,694 @@
+{
+  "models": [
+    {
+      "id": "Qwen2.5-7B-Instruct_INT4_AWQ",
+      "name": "Qwen 2.5 7B Instruct (INT4 AWQ)",
+      "type": "llm",
+      "size": "7B",
+      "quantization": "INT4 AWQ",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": true,
+      "advantages": [
+        "Ultra-fast token generation",
+        "Low VRAM footprint (~5-6GB)",
+        "Near-lossless 4-bit instruction quality",
+        "High concurrent throughput on RTX 5090"
+      ],
+      "disadvantages": [
+        "Slightly lower nuance on rare domain edge-cases compared to 14B"
+      ],
+      "good_for": [
+        "General Candidate Screening",
+        "Interview Question Generation",
+        "Technical Competency Probing",
+        "High-throughput concurrent tasks"
+      ],
+      "path": "/home/ror-technologies/Quantization/models/Qwen2.5-7B-Instruct_INT4_AWQ",
+      "quantization_flag": "awq",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "Qwen2.5-7B-Instruct_FP8_Static_per_tensor",
+      "name": "Qwen 2.5 7B Instruct (FP8 Static)",
+      "type": "llm",
+      "size": "7B",
+      "quantization": "FP8 Static",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Native FP8 Tensor Core acceleration on Ada/Blackwell GPUs",
+        "Higher precision retention than INT4",
+        "Balanced memory efficiency (~8GB VRAM)"
+      ],
+      "disadvantages": [
+        "Requires modern GPU architecture supporting FP8"
+      ],
+      "good_for": [
+        "Nuanced Answer Evaluation",
+        "Detailed Candidate Rationale Generation",
+        "Technical Assessment"
+      ],
+      "path": "/home/ror-technologies/Quantization/models/Qwen2.5-7B-Instruct_FP8_Static_per_tensor",
+      "quantization_flag": "fp8",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "Qwen2.5-7B-Instruct_FP16_Baseline",
+      "name": "Qwen 2.5 7B Instruct (FP16 Baseline)",
+      "type": "llm",
+      "size": "7B",
+      "quantization": "FP16 Baseline",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Full unquantized baseline precision",
+        "Zero quantization artifacts"
+      ],
+      "disadvantages": [
+        "Higher VRAM requirement (~15-16GB)",
+        "Lower maximum concurrency under heavy load"
+      ],
+      "good_for": [
+        "Benchmark Comparisons",
+        "Gold-standard Quality Audits"
+      ],
+      "path": "/home/ror-technologies/Quantization/models/Qwen2.5-7B-Instruct_FP16_Baseline",
+      "quantization_flag": null,
+      "dtype": "bfloat16",
+      "extra_args": []
+    },
+    {
+      "id": "Qwen2.5-14B-Instruct_INT4_AWQ",
+      "name": "Qwen 2.5 14B Instruct (INT4 AWQ)",
+      "type": "llm",
+      "size": "14B",
+      "quantization": "INT4 AWQ",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Superior reasoning and complex reasoning capabilities",
+        "Compact INT4 footprint fits comfortably in RTX 5090 (~10-11GB VRAM)",
+        "Exceptional code and technical depth evaluation"
+      ],
+      "disadvantages": [
+        "Higher per-token compute time than 3B/7B models"
+      ],
+      "good_for": [
+        "Deep Answer Evaluation",
+        "Senior Engineering Competency Rubrics",
+        "Multi-step Interview Analysis"
+      ],
+      "path": "/home/ror-technologies/Quantization/models/Qwen2.5-14B-Instruct_INT4_AWQ",
+      "quantization_flag": "awq",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "Qwen2.5-14B-Instruct_FP8_Static_per_tensor",
+      "name": "Qwen 2.5 14B Instruct (FP8 Static)",
+      "type": "llm",
+      "size": "14B",
+      "quantization": "FP8 Static",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Near-FP16 fidelity with ~15GB memory footprint",
+        "Fast Blackwell/RTX 5090 FP8 GEMM matrix throughput"
+      ],
+      "disadvantages": [
+        "Larger memory footprint limits KV cache size for extreme sequence lengths"
+      ],
+      "good_for": [
+        "High-precision Candidate Scoring",
+        "Complex Architectural Question Generation"
+      ],
+      "path": "/home/ror-technologies/Quantization/models/Qwen2.5-14B-Instruct_FP8_Static_per_tensor",
+      "quantization_flag": "fp8",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "Qwen2.5-14B-Instruct_FP16_Baseline",
+      "name": "Qwen 2.5 14B Instruct (FP16 Baseline)",
+      "type": "llm",
+      "size": "14B",
+      "quantization": "FP16 Baseline",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Maximum reasoning fidelity for 14B class",
+        "Uncompromised nuance"
+      ],
+      "disadvantages": [
+        "Heavy memory consumption (~28GB+ VRAM)"
+      ],
+      "good_for": [
+        "Exhaustive Benchmark Evaluation",
+        "Low-concurrency Deep Scoring"
+      ],
+      "path": "/home/ror-technologies/Quantization/models/Qwen2.5-14B-Instruct_FP16_Baseline",
+      "quantization_flag": null,
+      "dtype": "bfloat16",
+      "extra_args": []
+    },
+    {
+      "id": "Qwen2.5-3B-Instruct_INT4_AWQ",
+      "name": "Qwen 2.5 3B Instruct (INT4 AWQ)",
+      "type": "llm",
+      "size": "3B",
+      "quantization": "INT4 AWQ",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Blazing fast inference (>150 tokens/sec)",
+        "Negligible VRAM usage (~2.5GB)",
+        "Instant cold-start startup"
+      ],
+      "disadvantages": [
+        "Lower depth for senior or niche technical roles"
+      ],
+      "good_for": [
+        "Fast Keyword and Skill Gap Summaries",
+        "Preliminary Candidate Filtering",
+        "Lightweight Chat Responses"
+      ],
+      "path": "/home/ror-technologies/Quantization/models/Qwen2.5-3B-Instruct_INT4_AWQ",
+      "quantization_flag": "awq",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "Qwen2.5-3B-Instruct_FP8_Static_per_tensor",
+      "name": "Qwen 2.5 3B Instruct (FP8 Static)",
+      "type": "llm",
+      "size": "3B",
+      "quantization": "FP8 Static",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Fast FP8 execution with high precision retention for 3B"
+      ],
+      "disadvantages": [
+        "Limited complex reasoning"
+      ],
+      "good_for": [
+        "Fast Candidate Triage",
+        "Basic Question Generation"
+      ],
+      "path": "/home/ror-technologies/Quantization/models/Qwen2.5-3B-Instruct_FP8_Static_per_tensor",
+      "quantization_flag": "fp8",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "Qwen2.5-3B-Instruct_FP16_Baseline",
+      "name": "Qwen 2.5 3B Instruct (FP16 Baseline)",
+      "type": "llm",
+      "size": "3B",
+      "quantization": "FP16 Baseline",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Fast unquantized 3B inference"
+      ],
+      "disadvantages": [
+        "Uses ~6-7GB VRAM without significant quality bump over INT4/FP8"
+      ],
+      "good_for": [
+        "Baseline Testing"
+      ],
+      "path": "/home/ror-technologies/Quantization/models/Qwen2.5-3B-Instruct_FP16_Baseline",
+      "quantization_flag": null,
+      "dtype": "bfloat16",
+      "extra_args": []
+    },
+    {
+      "id": "meta-llama__Meta-Llama-3-8B-Instruct-AWQ",
+      "name": "Meta Llama 3 8B Instruct (AWQ)",
+      "type": "llm",
+      "size": "8B",
+      "quantization": "INT4 AWQ",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "High-performance Llama 3 general knowledge and conversational tone",
+        "Fast AWQ 4-bit execution"
+      ],
+      "disadvantages": [
+        "8k context window compared to Qwen 2.5's larger context"
+      ],
+      "good_for": [
+        "Interview Question Generation",
+        "Conversational Candidate Interaction"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Meta-Llama-3-8B-Instruct-AWQ",
+      "quantization_flag": "awq",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "meta-llama__Meta-Llama-3-8B-Instruct-GPTQ-4bit",
+      "name": "Meta Llama 3 8B Instruct (GPTQ 4-bit)",
+      "type": "llm",
+      "size": "8B",
+      "quantization": "GPTQ 4-bit",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Efficient GPTQ quantization",
+        "Solid general reasoning"
+      ],
+      "disadvantages": [
+        "Slightly slower kernel compilation than AWQ"
+      ],
+      "good_for": [
+        "Candidate Screening",
+        "Question Generation"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Meta-Llama-3-8B-Instruct-GPTQ-4bit",
+      "quantization_flag": "gptq",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "meta-llama__Meta-Llama-3-8B-Instruct-GPTQ-8bit",
+      "name": "Meta Llama 3 8B Instruct (GPTQ 8-bit)",
+      "type": "llm",
+      "size": "8B",
+      "quantization": "GPTQ 8-bit",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Higher 8-bit precision retention for Llama 3"
+      ],
+      "disadvantages": [
+        "Higher VRAM requirement (~9-10GB)"
+      ],
+      "good_for": [
+        "Accurate Question Scoring"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Meta-Llama-3-8B-Instruct-GPTQ-8bit",
+      "quantization_flag": "gptq",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "meta-llama__Meta-Llama-3-8B-Instruct-BNB-4bit",
+      "name": "Meta Llama 3 8B Instruct (BNB 4-bit)",
+      "type": "llm",
+      "size": "8B",
+      "quantization": "BNB 4-bit",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "BitsAndBytes NF4 precision format"
+      ],
+      "disadvantages": [
+        "Lower inference speed compared to native AWQ kernels"
+      ],
+      "good_for": [
+        "General Tasks"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Meta-Llama-3-8B-Instruct-BNB-4bit",
+      "quantization_flag": "bitsandbytes",
+      "dtype": null,
+      "extra_args": ["--load-format", "bitsandbytes"]
+    },
+    {
+      "id": "meta-llama__Meta-Llama-3-8B-Instruct-BNB-8bit",
+      "name": "Meta Llama 3 8B Instruct (BNB 8-bit)",
+      "type": "llm",
+      "size": "8B",
+      "quantization": "BNB 8-bit",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "BitsAndBytes 8-bit precision"
+      ],
+      "disadvantages": [
+        "Higher memory and lower throughput than AWQ"
+      ],
+      "good_for": [
+        "General Tasks"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Meta-Llama-3-8B-Instruct-BNB-8bit",
+      "quantization_flag": "bitsandbytes",
+      "dtype": null,
+      "extra_args": ["--load-format", "bitsandbytes"]
+    },
+    {
+      "id": "meta-llama__Llama-3.2-3B-Instruct-AWQ",
+      "name": "Llama 3.2 3B Instruct (AWQ)",
+      "type": "llm",
+      "size": "3B",
+      "quantization": "INT4 AWQ",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Modern Llama 3.2 architecture",
+        "Lightweight and snappy",
+        "128k context support"
+      ],
+      "disadvantages": [
+        "Smaller parameter scale than 7B/8B"
+      ],
+      "good_for": [
+        "Fast Screening",
+        "Conversational Assistant"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Llama-3.2-3B-Instruct-AWQ",
+      "quantization_flag": "awq",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "meta-llama__Llama-3.2-3B-Instruct-GPTQ-4bit",
+      "name": "Llama 3.2 3B Instruct (GPTQ 4-bit)",
+      "type": "llm",
+      "size": "3B",
+      "quantization": "GPTQ 4-bit",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Low memory usage (~3GB)"
+      ],
+      "disadvantages": [
+        "Limited complex reasoning"
+      ],
+      "good_for": [
+        "Fast Screening"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Llama-3.2-3B-Instruct-GPTQ-4bit",
+      "quantization_flag": "gptq",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "meta-llama__Llama-3.2-3B-Instruct-GPTQ-8bit",
+      "name": "Llama 3.2 3B Instruct (GPTQ 8-bit)",
+      "type": "llm",
+      "size": "3B",
+      "quantization": "GPTQ 8-bit",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Higher precision 8-bit for 3B"
+      ],
+      "disadvantages": [
+        "Uses more VRAM than 4-bit"
+      ],
+      "good_for": [
+        "Fast Screening"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Llama-3.2-3B-Instruct-GPTQ-8bit",
+      "quantization_flag": "gptq",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "meta-llama__Llama-3.2-3B-Instruct-BNB-4bit",
+      "name": "Llama 3.2 3B Instruct (BNB 4-bit)",
+      "type": "llm",
+      "size": "3B",
+      "quantization": "BNB 4-bit",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "BitsAndBytes 4-bit format"
+      ],
+      "disadvantages": [
+        "Slower inference than AWQ"
+      ],
+      "good_for": [
+        "Fast Triage"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Llama-3.2-3B-Instruct-BNB-4bit",
+      "quantization_flag": "bitsandbytes",
+      "dtype": null,
+      "extra_args": ["--load-format", "bitsandbytes"]
+    },
+    {
+      "id": "meta-llama__Llama-3.2-3B-Instruct-BNB-8bit",
+      "name": "Llama 3.2 3B Instruct (BNB 8-bit)",
+      "type": "llm",
+      "size": "3B",
+      "quantization": "BNB 8-bit",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "BitsAndBytes 8-bit format"
+      ],
+      "disadvantages": [
+        "Slower inference than AWQ"
+      ],
+      "good_for": [
+        "Fast Triage"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Llama-3.2-3B-Instruct-BNB-8bit",
+      "quantization_flag": "bitsandbytes",
+      "dtype": null,
+      "extra_args": ["--load-format", "bitsandbytes"]
+    },
+    {
+      "id": "meta-llama__Llama-3.2-1B-Instruct-AWQ",
+      "name": "Llama 3.2 1B Instruct (AWQ)",
+      "type": "llm",
+      "size": "1B",
+      "quantization": "INT4 AWQ",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Extremely lightweight (~1.5GB VRAM)",
+        "Instant cold boot",
+        "Fastest generation speed"
+      ],
+      "disadvantages": [
+        "Basic linguistic reasoning, prone to omissions on long input"
+      ],
+      "good_for": [
+        "Keyword Tagging",
+        "Fast Binary Classification",
+        "Text Normalization"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Llama-3.2-1B-Instruct-AWQ",
+      "quantization_flag": "awq",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "meta-llama__Llama-3.2-1B-Instruct-GPTQ-4bit",
+      "name": "Llama 3.2 1B Instruct (GPTQ 4-bit)",
+      "type": "llm",
+      "size": "1B",
+      "quantization": "GPTQ 4-bit",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Very small memory usage"
+      ],
+      "disadvantages": [
+        "Limited complex reasoning"
+      ],
+      "good_for": [
+        "Text Classification"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Llama-3.2-1B-Instruct-GPTQ-4bit",
+      "quantization_flag": "gptq",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "meta-llama__Llama-3.2-1B-Instruct-GPTQ-8bit",
+      "name": "Llama 3.2 1B Instruct (GPTQ 8-bit)",
+      "type": "llm",
+      "size": "1B",
+      "quantization": "GPTQ 8-bit",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "High fidelity 1B model"
+      ],
+      "disadvantages": [
+        "Limited reasoning"
+      ],
+      "good_for": [
+        "Text Classification"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Llama-3.2-1B-Instruct-GPTQ-8bit",
+      "quantization_flag": "gptq",
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "meta-llama__Llama-3.2-1B-Instruct-BNB-4bit",
+      "name": "Llama 3.2 1B Instruct (BNB 4-bit)",
+      "type": "llm",
+      "size": "1B",
+      "quantization": "BNB 4-bit",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Lightweight 1B model"
+      ],
+      "disadvantages": [
+        "Slower throughput than AWQ"
+      ],
+      "good_for": [
+        "Text Classification"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Llama-3.2-1B-Instruct-BNB-4bit",
+      "quantization_flag": "bitsandbytes",
+      "dtype": null,
+      "extra_args": ["--load-format", "bitsandbytes"]
+    },
+    {
+      "id": "meta-llama__Llama-3.2-1B-Instruct-BNB-8bit",
+      "name": "Llama 3.2 1B Instruct (BNB 8-bit)",
+      "type": "llm",
+      "size": "1B",
+      "quantization": "BNB 8-bit",
+      "local_or_pull": "local",
+      "pull": false,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Higher precision 1B model"
+      ],
+      "disadvantages": [
+        "Slower throughput than AWQ"
+      ],
+      "good_for": [
+        "Text Classification"
+      ],
+      "path": "/home/ror-technologies/IT-helpdesk-agent/quantized_models/meta-llama__Llama-3.2-1B-Instruct-BNB-8bit",
+      "quantization_flag": "bitsandbytes",
+      "dtype": null,
+      "extra_args": ["--load-format", "bitsandbytes"]
+    },
+    {
+      "id": "meta-llama/Llama-3.2-1B-Instruct",
+      "name": "Llama 3.2 1B Instruct (HuggingFace)",
+      "type": "llm",
+      "size": "1B",
+      "quantization": "None",
+      "local_or_pull": "pull",
+      "pull": true,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Standard HuggingFace repository",
+        "Automatic weight downloading"
+      ],
+      "disadvantages": [
+        "Unquantized FP16 weights (~2.5GB)"
+      ],
+      "good_for": [
+        "Fast Classification",
+        "Tagging"
+      ],
+      "path": "meta-llama/Llama-3.2-1B-Instruct",
+      "quantization_flag": null,
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "meta-llama/Llama-3.2-3B-Instruct",
+      "name": "Llama 3.2 3B Instruct (HuggingFace)",
+      "type": "llm",
+      "size": "3B",
+      "quantization": "None",
+      "local_or_pull": "pull",
+      "pull": true,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Standard HuggingFace repository",
+        "Automatic weight downloading"
+      ],
+      "disadvantages": [
+        "Unquantized FP16 weights (~6GB)"
+      ],
+      "good_for": [
+        "Fast Candidate Screening"
+      ],
+      "path": "meta-llama/Llama-3.2-3B-Instruct",
+      "quantization_flag": null,
+      "dtype": null,
+      "extra_args": []
+    },
+    {
+      "id": "meta-llama/Meta-Llama-3-8B-Instruct",
+      "name": "Meta Llama 3 8B Instruct (HuggingFace)",
+      "type": "llm",
+      "size": "8B",
+      "quantization": "None",
+      "local_or_pull": "pull",
+      "pull": true,
+      "enabled": true,
+      "default": false,
+      "advantages": [
+        "Standard HuggingFace repository",
+        "Full precision Llama 3 weights"
+      ],
+      "disadvantages": [
+        "Requires ~16GB VRAM"
+      ],
+      "good_for": [
+        "General Question Generation",
+        "Evaluation"
+      ],
+      "path": "meta-llama/Meta-Llama-3-8B-Instruct",
+      "quantization_flag": null,
+      "dtype": null,
+      "extra_args": []
+    }
+  ]
+}

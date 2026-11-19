@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from config import settings
-from models_catalog import get_model
+from models_catalog import get_default_model, get_model
 from scheduler import scheduler
 
 logger = logging.getLogger(__name__)
@@ -114,7 +114,9 @@ async def _stream_vllm_to_ollama(
 @router.post("/chat")
 @router.post("/api/chat")
 async def chat_ollama(request: OllamaChatRequest):
-    target_model = (request.model or settings.DEFAULT_LLM_MODEL).strip()
+    default_entry = get_default_model("llm")
+    fallback_id = default_entry.id if default_entry else ""
+    target_model = (request.model or fallback_id).strip()
     model_entry = get_model(target_model)
     if not model_entry or model_entry.type != "llm":
         raise HTTPException(
@@ -207,7 +209,9 @@ async def chat_ollama(request: OllamaChatRequest):
 @router.post("/v1/chat/completions")
 async def chat_openai(request: Request):
     body = await request.json()
-    target_model = (body.get("model") or settings.DEFAULT_LLM_MODEL).strip()
+    default_entry = get_default_model("llm")
+    fallback_id = default_entry.id if default_entry else ""
+    target_model = (body.get("model") or fallback_id).strip()
     is_stream = bool(body.get("stream", False))
 
     model_entry = get_model(target_model)

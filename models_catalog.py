@@ -1,15 +1,35 @@
 """
-Master model catalog and registry for ekoi-llm-router.
+Master model catalog loader for ekoi-llm-router.
+Loads models strictly from models.json (central source of truth) with zero hardcoded model IDs.
 """
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from config import settings
+
+logger = logging.getLogger(__name__)
+
+MODELS_JSON_PATH = Path(__file__).resolve().parent / "models.json"
+
+# Fields exposed publicly by default (excluding internal operational details like pull, enabled, path)
+PUBLIC_DEFAULT_FIELDS: Set[str] = {
+    "id",
+    "name",
+    "type",
+    "size",
+    "quantization",
+    "advantages",
+    "disadvantages",
+    "good_for",
+    "default",
+}
 
 
 @dataclass
@@ -17,346 +37,165 @@ class ModelEntry:
     id: str
     name: str
     type: str  # "llm" or "embedding"
-    description: str
-    family: str
+    size: str
+    quantization: str
+    local_or_pull: str
+    pull: bool
+    enabled: bool
+    default: bool
+    advantages: List[str]
+    disadvantages: List[str]
+    good_for: List[str]
     path: str
-    quantization: Optional[str] = None
+    quantization_flag: Optional[str] = None
     dtype: Optional[str] = None
     extra_args: List[str] = field(default_factory=list)
-    active: bool = True
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
+    def to_dict(self, fields: Optional[List[str]] = None) -> Dict[str, Any]:
+        """
+        Serialize model entry to dict.
+        If fields is provided, only include those specified fields.
+        Otherwise, include standard public fields (excluding internal operational fields).
+        """
+        full_dict = {
             "id": self.id,
             "name": self.name,
-            "description": self.description,
             "type": self.type,
-            "family": self.family,
-            "active": self.active,
+            "size": self.size,
+            "quantization": self.quantization,
+            "local_or_pull": self.local_or_pull,
+            "pull": self.pull,
+            "enabled": self.enabled,
+            "default": self.default,
+            "advantages": self.advantages,
+            "disadvantages": self.disadvantages,
+            "good_for": self.good_for,
+            "path": self.path,
         }
 
+        if fields:
+            # Return only requested keys
+            req_set = {f.strip() for f in fields if f.strip()}
+            return {k: full_dict[k] for k in req_set if k in full_dict}
 
-def _build_catalog() -> Dict[str, ModelEntry]:
-    catalog: Dict[str, ModelEntry] = {}
-
-    qwen_dir = settings.QWEN_MODELS_DIR
-    llama_dir = settings.LLAMA_MODELS_DIR
-
-    # ─────────────────────────────────────────────────────────────
-    # Qwen 2.5 Models
-    # ─────────────────────────────────────────────────────────────
-    qwen_models = [
-        # 3B
-        ModelEntry(
-            id="Qwen2.5-3B-Instruct_FP16_Baseline",
-            name="Qwen 2.5 3B Instruct (FP16 Baseline)",
-            type="llm",
-            description="3B parameter instruct baseline in FP16/BF16",
-            family="qwen2.5",
-            path=str(Path(qwen_dir) / "Qwen2.5-3B-Instruct_FP16_Baseline"),
-            dtype="bfloat16",
-        ),
-        ModelEntry(
-            id="Qwen2.5-3B-Instruct_FP8_Static_per_tensor",
-            name="Qwen 2.5 3B Instruct (FP8 Static per-tensor)",
-            type="llm",
-            description="3B parameter instruct model with FP8 static quantization",
-            family="qwen2.5",
-            path=str(Path(qwen_dir) / "Qwen2.5-3B-Instruct_FP8_Static_per_tensor"),
-            quantization="fp8",
-        ),
-        ModelEntry(
-            id="Qwen2.5-3B-Instruct_INT4_AWQ",
-            name="Qwen 2.5 3B Instruct (INT4 AWQ)",
-            type="llm",
-            description="3B parameter instruct model with 4-bit AWQ quantization",
-            family="qwen2.5",
-            path=str(Path(qwen_dir) / "Qwen2.5-3B-Instruct_INT4_AWQ"),
-            quantization="awq",
-        ),
-        # 7B
-        ModelEntry(
-            id="Qwen2.5-7B-Instruct_FP16_Baseline",
-            name="Qwen 2.5 7B Instruct (FP16 Baseline)",
-            type="llm",
-            description="7B parameter instruct baseline in FP16/BF16",
-            family="qwen2.5",
-            path=str(Path(qwen_dir) / "Qwen2.5-7B-Instruct_FP16_Baseline"),
-            dtype="bfloat16",
-        ),
-        ModelEntry(
-            id="Qwen2.5-7B-Instruct_FP8_Static_per_tensor",
-            name="Qwen 2.5 7B Instruct (FP8 Static per-tensor)",
-            type="llm",
-            description="7B parameter instruct model with FP8 static quantization",
-            family="qwen2.5",
-            path=str(Path(qwen_dir) / "Qwen2.5-7B-Instruct_FP8_Static_per_tensor"),
-            quantization="fp8",
-        ),
-        ModelEntry(
-            id="Qwen2.5-7B-Instruct_INT4_AWQ",
-            name="Qwen 2.5 7B Instruct (INT4 AWQ)",
-            type="llm",
-            description="7B parameter instruct model with 4-bit AWQ quantization (Default)",
-            family="qwen2.5",
-            path=str(Path(qwen_dir) / "Qwen2.5-7B-Instruct_INT4_AWQ"),
-            quantization="awq",
-        ),
-        # 14B
-        ModelEntry(
-            id="Qwen2.5-14B-Instruct_FP16_Baseline",
-            name="Qwen 2.5 14B Instruct (FP16 Baseline)",
-            type="llm",
-            description="14B parameter instruct baseline in FP16/BF16",
-            family="qwen2.5",
-            path=str(Path(qwen_dir) / "Qwen2.5-14B-Instruct_FP16_Baseline"),
-            dtype="bfloat16",
-        ),
-        ModelEntry(
-            id="Qwen2.5-14B-Instruct_FP8_Static_per_tensor",
-            name="Qwen 2.5 14B Instruct (FP8 Static per-tensor)",
-            type="llm",
-            description="14B parameter instruct model with FP8 static quantization",
-            family="qwen2.5",
-            path=str(Path(qwen_dir) / "Qwen2.5-14B-Instruct_FP8_Static_per_tensor"),
-            quantization="fp8",
-        ),
-        ModelEntry(
-            id="Qwen2.5-14B-Instruct_INT4_AWQ",
-            name="Qwen 2.5 14B Instruct (INT4 AWQ)",
-            type="llm",
-            description="14B parameter instruct model with 4-bit AWQ quantization",
-            family="qwen2.5",
-            path=str(Path(qwen_dir) / "Qwen2.5-14B-Instruct_INT4_AWQ"),
-            quantization="awq",
-        ),
-    ]
-
-    for m in qwen_models:
-        catalog[m.id] = m
-
-    # ─────────────────────────────────────────────────────────────
-    # Llama Models (Quantized local folders)
-    # ─────────────────────────────────────────────────────────────
-    llama_models = [
-        # Llama-3.2 1B
-        ModelEntry(
-            id="meta-llama__Llama-3.2-1B-Instruct-AWQ",
-            name="Llama 3.2 1B Instruct (AWQ)",
-            type="llm",
-            description="Llama-3.2 1B with AWQ 4-bit quantization",
-            family="llama-3.2",
-            path=str(Path(llama_dir) / "meta-llama__Llama-3.2-1B-Instruct-AWQ"),
-            quantization="awq",
-        ),
-        ModelEntry(
-            id="meta-llama__Llama-3.2-1B-Instruct-BNB-4bit",
-            name="Llama 3.2 1B Instruct (BNB 4-bit)",
-            type="llm",
-            description="Llama-3.2 1B with BitsAndBytes 4-bit quantization",
-            family="llama-3.2",
-            path=str(Path(llama_dir) / "meta-llama__Llama-3.2-1B-Instruct-BNB-4bit"),
-            quantization="bitsandbytes",
-            extra_args=["--load-format", "bitsandbytes"],
-        ),
-        ModelEntry(
-            id="meta-llama__Llama-3.2-1B-Instruct-BNB-8bit",
-            name="Llama 3.2 1B Instruct (BNB 8-bit)",
-            type="llm",
-            description="Llama-3.2 1B with BitsAndBytes 8-bit quantization",
-            family="llama-3.2",
-            path=str(Path(llama_dir) / "meta-llama__Llama-3.2-1B-Instruct-BNB-8bit"),
-            quantization="bitsandbytes",
-            extra_args=["--load-format", "bitsandbytes"],
-        ),
-        ModelEntry(
-            id="meta-llama__Llama-3.2-1B-Instruct-GPTQ-4bit",
-            name="Llama 3.2 1B Instruct (GPTQ 4-bit)",
-            type="llm",
-            description="Llama-3.2 1B with GPTQ 4-bit quantization",
-            family="llama-3.2",
-            path=str(Path(llama_dir) / "meta-llama__Llama-3.2-1B-Instruct-GPTQ-4bit"),
-            quantization="gptq",
-        ),
-        ModelEntry(
-            id="meta-llama__Llama-3.2-1B-Instruct-GPTQ-8bit",
-            name="Llama 3.2 1B Instruct (GPTQ 8-bit)",
-            type="llm",
-            description="Llama-3.2 1B with GPTQ 8-bit quantization",
-            family="llama-3.2",
-            path=str(Path(llama_dir) / "meta-llama__Llama-3.2-1B-Instruct-GPTQ-8bit"),
-            quantization="gptq",
-        ),
-        # Llama-3.2 3B
-        ModelEntry(
-            id="meta-llama__Llama-3.2-3B-Instruct-AWQ",
-            name="Llama 3.2 3B Instruct (AWQ)",
-            type="llm",
-            description="Llama-3.2 3B with AWQ 4-bit quantization",
-            family="llama-3.2",
-            path=str(Path(llama_dir) / "meta-llama__Llama-3.2-3B-Instruct-AWQ"),
-            quantization="awq",
-        ),
-        ModelEntry(
-            id="meta-llama__Llama-3.2-3B-Instruct-BNB-4bit",
-            name="Llama 3.2 3B Instruct (BNB 4-bit)",
-            type="llm",
-            description="Llama-3.2 3B with BitsAndBytes 4-bit quantization",
-            family="llama-3.2",
-            path=str(Path(llama_dir) / "meta-llama__Llama-3.2-3B-Instruct-BNB-4bit"),
-            quantization="bitsandbytes",
-            extra_args=["--load-format", "bitsandbytes"],
-        ),
-        ModelEntry(
-            id="meta-llama__Llama-3.2-3B-Instruct-BNB-8bit",
-            name="Llama 3.2 3B Instruct (BNB 8-bit)",
-            type="llm",
-            description="Llama-3.2 3B with BitsAndBytes 8-bit quantization",
-            family="llama-3.2",
-            path=str(Path(llama_dir) / "meta-llama__Llama-3.2-3B-Instruct-BNB-8bit"),
-            quantization="bitsandbytes",
-            extra_args=["--load-format", "bitsandbytes"],
-        ),
-        ModelEntry(
-            id="meta-llama__Llama-3.2-3B-Instruct-GPTQ-4bit",
-            name="Llama 3.2 3B Instruct (GPTQ 4-bit)",
-            type="llm",
-            description="Llama-3.2 3B with GPTQ 4-bit quantization",
-            family="llama-3.2",
-            path=str(Path(llama_dir) / "meta-llama__Llama-3.2-3B-Instruct-GPTQ-4bit"),
-            quantization="gptq",
-        ),
-        ModelEntry(
-            id="meta-llama__Llama-3.2-3B-Instruct-GPTQ-8bit",
-            name="Llama 3.2 3B Instruct (GPTQ 8-bit)",
-            type="llm",
-            description="Llama-3.2 3B with GPTQ 8-bit quantization",
-            family="llama-3.2",
-            path=str(Path(llama_dir) / "meta-llama__Llama-3.2-3B-Instruct-GPTQ-8bit"),
-            quantization="gptq",
-        ),
-        # Meta-Llama-3 8B
-        ModelEntry(
-            id="meta-llama__Meta-Llama-3-8B-Instruct-AWQ",
-            name="Meta Llama 3 8B Instruct (AWQ)",
-            type="llm",
-            description="Meta-Llama-3 8B with AWQ 4-bit quantization",
-            family="llama-3",
-            path=str(Path(llama_dir) / "meta-llama__Meta-Llama-3-8B-Instruct-AWQ"),
-            quantization="awq",
-        ),
-        ModelEntry(
-            id="meta-llama__Meta-Llama-3-8B-Instruct-BNB-4bit",
-            name="Meta Llama 3 8B Instruct (BNB 4-bit)",
-            type="llm",
-            description="Meta-Llama-3 8B with BitsAndBytes 4-bit quantization",
-            family="llama-3",
-            path=str(Path(llama_dir) / "meta-llama__Meta-Llama-3-8B-Instruct-BNB-4bit"),
-            quantization="bitsandbytes",
-            extra_args=["--load-format", "bitsandbytes"],
-        ),
-        ModelEntry(
-            id="meta-llama__Meta-Llama-3-8B-Instruct-BNB-8bit",
-            name="Meta Llama 3 8B Instruct (BNB 8-bit)",
-            type="llm",
-            description="Meta-Llama-3 8B with BitsAndBytes 8-bit quantization",
-            family="llama-3",
-            path=str(Path(llama_dir) / "meta-llama__Meta-Llama-3-8B-Instruct-BNB-8bit"),
-            quantization="bitsandbytes",
-            extra_args=["--load-format", "bitsandbytes"],
-        ),
-        ModelEntry(
-            id="meta-llama__Meta-Llama-3-8B-Instruct-GPTQ-4bit",
-            name="Meta Llama 3 8B Instruct (GPTQ 4-bit)",
-            type="llm",
-            description="Meta-Llama-3 8B with GPTQ 4-bit quantization",
-            family="llama-3",
-            path=str(Path(llama_dir) / "meta-llama__Meta-Llama-3-8B-Instruct-GPTQ-4bit"),
-            quantization="gptq",
-        ),
-        ModelEntry(
-            id="meta-llama__Meta-Llama-3-8B-Instruct-GPTQ-8bit",
-            name="Meta Llama 3 8B Instruct (GPTQ 8-bit)",
-            type="llm",
-            description="Meta-Llama-3 8B with GPTQ 8-bit quantization",
-            family="llama-3",
-            path=str(Path(llama_dir) / "meta-llama__Meta-Llama-3-8B-Instruct-GPTQ-8bit"),
-            quantization="gptq",
-        ),
-    ]
-
-    for m in llama_models:
-        catalog[m.id] = m
-
-    # ─────────────────────────────────────────────────────────────
-    # HuggingFace standard download directory models
-    # ─────────────────────────────────────────────────────────────
-    hf_models = [
-        ModelEntry(
-            id="meta-llama/Llama-3.2-1B-Instruct",
-            name="Llama 3.2 1B Instruct (HuggingFace)",
-            type="llm",
-            description="Standard HuggingFace downloaded Llama-3.2 1B Instruct",
-            family="llama-3.2",
-            path="meta-llama/Llama-3.2-1B-Instruct",
-        ),
-        ModelEntry(
-            id="meta-llama/Llama-3.2-3B-Instruct",
-            name="Llama 3.2 3B Instruct (HuggingFace)",
-            type="llm",
-            description="Standard HuggingFace downloaded Llama-3.2 3B Instruct",
-            family="llama-3.2",
-            path="meta-llama/Llama-3.2-3B-Instruct",
-        ),
-        ModelEntry(
-            id="meta-llama/Meta-Llama-3-8B-Instruct",
-            name="Meta Llama 3 8B Instruct (HuggingFace)",
-            type="llm",
-            description="Standard HuggingFace downloaded Meta-Llama-3 8B Instruct",
-            family="llama-3",
-            path="meta-llama/Meta-Llama-3-8B-Instruct",
-        ),
-    ]
-
-    for m in hf_models:
-        catalog[m.id] = m
-
-    # ─────────────────────────────────────────────────────────────
-    # Embedding Models (Served concurrently on CPU)
-    # ─────────────────────────────────────────────────────────────
-    embed_models = [
-        ModelEntry(
-            id="nomic-ai/nomic-embed-text-v1.5",
-            name="Nomic Embed Text v1.5",
-            type="embedding",
-            description="High-performance embedding model running locally on CPU via FastEmbed",
-            family="nomic",
-            path="nomic-ai/nomic-embed-text-v1.5",
-        ),
-    ]
-
-    for m in embed_models:
-        catalog[m.id] = m
-
-    return catalog
+        # Default clean public response
+        return {k: full_dict[k] for k in PUBLIC_DEFAULT_FIELDS if k in full_dict}
 
 
-CATALOG: Dict[str, ModelEntry] = _build_catalog()
+class ModelRegistry:
+    def __init__(self, json_path: Path = MODELS_JSON_PATH):
+        self.json_path = json_path
+        self._models: Dict[str, ModelEntry] = {}
+        self.load()
+
+    def load(self) -> None:
+        """Parse models.json and resolve environment directory templates."""
+        if not self.json_path.exists():
+            logger.error("models.json not found at %s", self.json_path)
+            self._models = {}
+            return
+
+        try:
+            with open(self.json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            raw_models = data.get("models", [])
+
+            parsed: Dict[str, ModelEntry] = {}
+            for item in raw_models:
+                m_id = item.get("id")
+                if not m_id:
+                    continue
+
+                entry = ModelEntry(
+                    id=m_id,
+                    name=item.get("name", m_id),
+                    type=item.get("type", "llm"),
+                    size=item.get("size", "unknown"),
+                    quantization=item.get("quantization", "None"),
+                    local_or_pull=item.get("local_or_pull", "local"),
+                    pull=bool(item.get("pull", False)),
+                    enabled=bool(item.get("enabled", True)),
+                    default=bool(item.get("default", False)),
+                    advantages=item.get("advantages", []),
+                    disadvantages=item.get("disadvantages", []),
+                    good_for=item.get("good_for", []),
+                    path=item.get("path", ""),
+                    quantization_flag=item.get("quantization_flag"),
+                    dtype=item.get("dtype"),
+                    extra_args=item.get("extra_args", []),
+                )
+                parsed[m_id] = entry
+
+            self._models = parsed
+            logger.info("Loaded %d models from %s", len(self._models), self.json_path)
+
+        except Exception as exc:
+            logger.error("Failed to parse models.json: %s", exc)
+            self._models = {}
+
+    def get_model(self, model_id: str) -> Optional[ModelEntry]:
+        """Retrieve model entry by exact identifier."""
+        if not model_id:
+            return None
+        return self._models.get(model_id.strip())
+
+    def get_default_model(self, model_type: str = "llm") -> Optional[ModelEntry]:
+        """Return the model marked with default: true for the given type."""
+        for m in self._models.values():
+            if m.type == model_type and m.default and m.enabled:
+                return m
+        # Fallback to first enabled model of that type
+        for m in self._models.values():
+            if m.type == model_type and m.enabled:
+                return m
+        return None
+
+    def list_models(
+        self,
+        model_type: Optional[str] = None,
+        include_disabled: bool = False,
+        fields: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        List models formatted with specified fields or default public fields.
+        Filters out disabled models by default.
+        """
+        results: List[Dict[str, Any]] = []
+        for m in self._models.values():
+            if not include_disabled and not m.enabled:
+                continue
+            if model_type and m.type != model_type:
+                continue
+            results.append(m.to_dict(fields=fields))
+        return results
+
+    def get_all_entries(self) -> List[ModelEntry]:
+        return list(self._models.values())
+
+
+# Global registry instance
+registry = ModelRegistry()
 
 
 def get_model(model_id: str) -> Optional[ModelEntry]:
-    """Retrieve model entry by exact identifier."""
-    if not model_id:
-        return None
-    return CATALOG.get(model_id.strip())
+    return registry.get_model(model_id)
 
 
-def list_models(model_type: Optional[str] = None) -> List[ModelEntry]:
-    """List all registered models, optionally filtered by type ('llm' or 'embedding')."""
-    models = list(CATALOG.values())
-    if model_type:
-        models = [m for m in models if m.type == model_type]
-    return models
+def get_default_model(model_type: str = "llm") -> Optional[ModelEntry]:
+    return registry.get_default_model(model_type)
+
+
+def list_models(
+    model_type: Optional[str] = None,
+    include_disabled: bool = False,
+    fields: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    return registry.list_models(
+        model_type=model_type,
+        include_disabled=include_disabled,
+        fields=fields,
+    )
 
 
 def resolve_vllm_command(model_entry: ModelEntry) -> List[str]:
@@ -380,8 +219,8 @@ def resolve_vllm_command(model_entry: ModelEntry) -> List[str]:
         "--trust-remote-code",
     ]
 
-    if model_entry.quantization:
-        cmd.extend(["--quantization", model_entry.quantization])
+    if model_entry.quantization_flag:
+        cmd.extend(["--quantization", model_entry.quantization_flag])
 
     if model_entry.dtype:
         cmd.extend(["--dtype", model_entry.dtype])

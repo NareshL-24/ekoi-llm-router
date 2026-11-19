@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import List
 
 
@@ -23,20 +22,8 @@ class Settings:
     GPU_MEMORY_UTILIZATION: float = float(os.getenv("VLLM_GPU_MEMORY_UTILIZATION", "0.95"))
     MAX_MODEL_LEN: int = int(os.getenv("VLLM_MAX_MODEL_LEN", "8192"))
 
-    # Server model directories
-    QWEN_MODELS_DIR: str = os.getenv(
-        "QWEN_MODELS_DIR", "/home/ror-technologies/Quantization/models"
-    )
-    LLAMA_MODELS_DIR: str = os.getenv(
-        "LLAMA_MODELS_DIR", "/home/ror-technologies/IT-helpdesk-agent/quantized_models"
-    )
-    HF_CACHE_DIR: str = os.getenv("HF_HOME", "")
-
-    # Default models
-    DEFAULT_LLM_MODEL: str = os.getenv("DEFAULT_LLM_MODEL", "Qwen2.5-7B-Instruct_INT4_AWQ")
-    DEFAULT_EMBED_MODEL: str = os.getenv(
-        "DEFAULT_EMBED_MODEL", "nomic-ai/nomic-embed-text-v1.5"
-    )
+    # Dedicated single embedding model on CPU
+    EMBEDDING_MODEL_ID: str = os.getenv("EMBEDDING_MODEL_ID", "nomic-ai/nomic-embed-text-v1.5")
 
     # Scheduler policies
     IDLE_UNLOAD_TIMEOUT: int = int(os.getenv("IDLE_UNLOAD_TIMEOUT", "300"))  # 5 minutes

@@ -1,5 +1,5 @@
 """
-Unit tests for ekoi-llm-router catalog, scheduler, and API routes.
+Unit tests for ekoi-llm-router models.json catalog, field projection, and command generation.
 Runs without GPU or vLLM dependency.
 """
 
@@ -15,35 +15,54 @@ if str(router_root) not in sys.path:
 
 os.environ["MOCK_MODE"] = "true"
 
-from models_catalog import CATALOG, get_model, list_models, resolve_vllm_command
+from models_catalog import get_default_model, get_model, list_models, registry, resolve_vllm_command
+from embedding_service import embedding_service
 from config import settings
 
 
 class TestModelsCatalog(unittest.TestCase):
-    def test_catalog_contains_expected_models(self):
-        self.assertGreaterEqual(len(CATALOG), 28)
+    def test_catalog_loaded_from_json(self):
+        all_entries = registry.get_all_entries()
+        self.assertGreaterEqual(len(all_entries), 27)
 
-        # Check default Qwen model
-        qwen_7b_awq = get_model("Qwen2.5-7B-Instruct_INT4_AWQ")
-        self.assertIsNotNone(qwen_7b_awq)
-        self.assertEqual(qwen_7b_awq.quantization, "awq")
-        self.assertEqual(qwen_7b_awq.type, "llm")
-        self.assertIn("Qwen2.5-7B-Instruct_INT4_AWQ", qwen_7b_awq.path)
+        # Check default LLM dynamically
+        default_llm = get_default_model("llm")
+        self.assertIsNotNone(default_llm)
+        self.assertTrue(default_llm.default)
+        self.assertEqual(default_llm.type, "llm")
+        self.assertEqual(default_llm.id, "Qwen2.5-7B-Instruct_INT4_AWQ")
+        self.assertEqual(default_llm.name, "Qwen 2.5 7B Instruct (INT4 AWQ)")
+        self.assertEqual(default_llm.quantization, "INT4 AWQ")
+        self.assertIn("General Candidate Screening", default_llm.good_for)
 
-        # Check Qwen FP16
-        qwen_14b_fp16 = get_model("Qwen2.5-14B-Instruct_FP16_Baseline")
-        self.assertIsNotNone(qwen_14b_fp16)
-        self.assertIsNone(qwen_14b_fp16.quantization)
+    def test_dedicated_embedding_service(self):
+        # Single dedicated embedder configured in settings
+        self.assertEqual(settings.EMBEDDING_MODEL_ID, "nomic-ai/nomic-embed-text-v1.5")
+        self.assertEqual(embedding_service.model_id, "nomic-ai/nomic-embed-text-v1.5")
 
-        # Check Llama BNB
-        llama_bnb = get_model("meta-llama__Llama-3.2-3B-Instruct-BNB-4bit")
-        self.assertIsNotNone(llama_bnb)
-        self.assertEqual(llama_bnb.quantization, "bitsandbytes")
+        # Test sync embedding mock output
+        results = embedding_service._sync_embed(["Hello world", "Test sentence"])
+        self.assertEqual(len(results), 2)
+        self.assertEqual(len(results[0]), 768)
 
-        # Check Embedding model
-        nomic_embed = get_model("nomic-ai/nomic-embed-text-v1.5")
-        self.assertIsNotNone(nomic_embed)
-        self.assertEqual(nomic_embed.type, "embedding")
+    def test_fields_projection(self):
+        # Default public fields: excludes pull, enabled, path
+        models = list_models(model_type="llm")
+        first = models[0]
+        self.assertIn("id", first)
+        self.assertIn("name", first)
+        self.assertIn("size", first)
+        self.assertIn("quantization", first)
+        self.assertIn("advantages", first)
+        self.assertIn("good_for", first)
+        self.assertNotIn("pull", first)
+        self.assertNotIn("enabled", first)
+        self.assertNotIn("path", first)
+
+        # Explicit projection: only id and name
+        projected = list_models(model_type="llm", fields=["id", "name"])
+        first_proj = projected[0]
+        self.assertEqual(set(first_proj.keys()), {"id", "name"})
 
     def test_vllm_command_generation(self):
         model = get_model("Qwen2.5-7B-Instruct_INT4_AWQ")
@@ -53,13 +72,6 @@ class TestModelsCatalog(unittest.TestCase):
         self.assertIn("awq", cmd)
         self.assertIn("--port", cmd)
         self.assertIn(str(settings.VLLM_INTERNAL_PORT), cmd)
-
-    def test_filter_models_by_type(self):
-        llms = list_models("llm")
-        embeddings = list_models("embedding")
-        self.assertTrue(all(m.type == "llm" for m in llms))
-        self.assertTrue(all(m.type == "embedding" for m in embeddings))
-        self.assertEqual(len(embeddings), 1)
 
 
 if __name__ == "__main__":
