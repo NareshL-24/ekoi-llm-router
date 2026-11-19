@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ekoi-llm-router"
+version = "0.1.0"
+description = "Lightweight sequential vLLM model orchestrator with Ollama and OpenAI API compatibility"
+authors = [
+    {name = "ROR Technologies"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.28.0",
+    "pydantic>=2.6.0",
+    "httpx>=0.27.0",
+    "fastembed>=0.2.7",
+    "pynvml>=11.5.0",
+    "pyyaml>=6.0.1",
+    "aiofiles>=23.2.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["api*", "core*", "services*"]
