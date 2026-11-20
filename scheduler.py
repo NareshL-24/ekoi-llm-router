@@ -206,7 +206,8 @@ class SequentialScheduler:
             # Start vLLM with the new model
             success = await vllm_controller.start(model_entry)
             if not success:
-                raise RuntimeError(f"Failed to initialize vLLM engine for model '{target_model_id}'")
+                err_detail = vllm_controller.last_error or "Check server console logs for details."
+                raise RuntimeError(f"Failed to initialize vLLM engine for model '{target_model_id}': {err_detail}")
 
             # Dispatch all requests for this target model
             async with self._lock:

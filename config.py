@@ -19,7 +19,7 @@ class Settings:
     VLLM_INTERNAL_HOST: str = os.getenv("VLLM_INTERNAL_HOST", "127.0.0.1")
     VLLM_INTERNAL_PORT: int = int(os.getenv("VLLM_INTERNAL_PORT", "8001"))
     VLLM_STARTUP_TIMEOUT: int = int(os.getenv("VLLM_STARTUP_TIMEOUT", "180"))
-    GPU_MEMORY_UTILIZATION: float = float(os.getenv("VLLM_GPU_MEMORY_UTILIZATION", "0.95"))
+    GPU_MEMORY_UTILIZATION: float = float(os.getenv("VLLM_GPU_MEMORY_UTILIZATION", "0.85"))
     MAX_MODEL_LEN: int = int(os.getenv("VLLM_MAX_MODEL_LEN", "8192"))
 
     # Dedicated single embedding model on CPU

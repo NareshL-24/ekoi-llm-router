@@ -8,6 +8,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
@@ -200,12 +202,23 @@ def list_models(
 
 def resolve_vllm_command(model_entry: ModelEntry) -> List[str]:
     """Generate CLI command arguments for launching vLLM."""
-    cmd = [
-        "python",
-        "-m",
-        "vllm.entrypoints.openai.api_server",
-        "--model",
-        model_entry.path,
+    venv_bin = Path(sys.executable).parent
+    venv_vllm = venv_bin / ("vllm.exe" if sys.platform == "win32" else "vllm")
+
+    if venv_vllm.exists():
+        cmd = [str(venv_vllm), "serve", model_entry.path]
+    elif shutil.which("vllm"):
+        cmd = [shutil.which("vllm"), "serve", model_entry.path]
+    else:
+        cmd = [
+            sys.executable,
+            "-m",
+            "vllm.entrypoints.openai.api_server",
+            "--model",
+            model_entry.path,
+        ]
+
+    cmd.extend([
         "--served-model-name",
         model_entry.id,
         "--host",
@@ -217,7 +230,7 @@ def resolve_vllm_command(model_entry: ModelEntry) -> List[str]:
         "--max-model-len",
         str(settings.MAX_MODEL_LEN),
         "--trust-remote-code",
-    ]
+    ])
 
     if model_entry.quantization_flag:
         cmd.extend(["--quantization", model_entry.quantization_flag])

@@ -4,6 +4,7 @@ Chat endpoints supporting both Ollama (/chat, /api/chat) and OpenAI (/v1/chat/co
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -124,10 +125,10 @@ async def chat_ollama(request: OllamaChatRequest):
             detail=f"Model '{target_model}' not found or is not a text generation LLM.",
         )
 
-    # Acquire sequential slot (will wait in queue if another model is loaded)
-    await scheduler.acquire_slot(target_model)
-
     try:
+        # Acquire sequential slot (will wait in queue if another model is loaded)
+        await scheduler.acquire_slot(target_model)
+
         if settings.MOCK_MODE:
             if request.stream:
                 return StreamingResponse(
@@ -192,11 +193,12 @@ async def chat_ollama(request: OllamaChatRequest):
                 }
             )
 
-    except Exception:
+    except Exception as exc:
+        logger.error("Chat request failed: %s", exc, exc_info=True)
         # If an error happens before or during non-streaming response, release slot immediately
         if not request.stream or settings.MOCK_MODE:
             await scheduler.release_slot(target_model)
-        raise
+        raise HTTPException(status_code=500, detail=str(exc))
     else:
         # If successful and not streaming, release slot now
         if not request.stream or settings.MOCK_MODE:
@@ -221,9 +223,9 @@ async def chat_openai(request: Request):
             detail=f"Model '{target_model}' not found or is not a text generation LLM.",
         )
 
-    await scheduler.acquire_slot(target_model)
-
     try:
+        await scheduler.acquire_slot(target_model)
+
         if settings.MOCK_MODE:
             if is_stream:
                 async def _mock_openai_sse():
@@ -289,10 +291,11 @@ async def chat_openai(request: Request):
                 raise HTTPException(status_code=resp.status_code, detail=resp.text)
             return JSONResponse(resp.json())
 
-    except Exception:
+    except Exception as exc:
+        logger.error("Chat completions failed: %s", exc, exc_info=True)
         if not is_stream or settings.MOCK_MODE:
             await scheduler.release_slot(target_model)
-        raise
+        raise HTTPException(status_code=500, detail=str(exc))
     else:
         if not is_stream or settings.MOCK_MODE:
             await scheduler.release_slot(target_model)
