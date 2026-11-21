@@ -140,7 +140,7 @@ async def unload_model():
             "gpu": get_gpu_memory_info(),
         })
 
-    await vllm_controller.stop()
+    await scheduler.unload()
     return JSONResponse({
         "status": "unloaded",
         "unloaded_model": current,

@@ -48,8 +48,9 @@ class SequentialScheduler:
         return len(self._queue)
 
     def get_status(self) -> dict:
+        timer_active = bool(self._idle_task and not self._idle_task.done() and vllm_controller.is_running)
         idle_remaining = None
-        if self._idle_started_at is not None and settings.IDLE_UNLOAD_TIMEOUT > 0:
+        if timer_active and self._idle_started_at is not None and settings.IDLE_UNLOAD_TIMEOUT > 0:
             elapsed = time.time() - self._idle_started_at
             idle_remaining = max(0, int(settings.IDLE_UNLOAD_TIMEOUT - elapsed))
 
@@ -60,7 +61,7 @@ class SequentialScheduler:
             "queued_requests": len(self._queue),
             "is_switching": self._is_switching,
             "idle_timeout_seconds": settings.IDLE_UNLOAD_TIMEOUT,
-            "idle_timer_active": bool(self._idle_task and not self._idle_task.done()),
+            "idle_timer_active": timer_active,
             "idle_seconds_remaining": idle_remaining,
         }
 
@@ -69,6 +70,12 @@ class SequentialScheduler:
             self._idle_task.cancel()
             self._idle_task = None
         self._idle_started_at = None
+
+    async def unload(self) -> None:
+        """Explicitly cancel idle countdown and unload active model from GPU."""
+        async with self._lock:
+            self._cancel_idle_timer()
+            await vllm_controller.stop()
 
     def _start_idle_timer(self):
         self._cancel_idle_timer()
