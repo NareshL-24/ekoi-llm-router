@@ -32,6 +32,7 @@ class SequentialScheduler:
         self._queue: List[QueuedRequest] = []
         self._lock = asyncio.Lock()
         self._idle_task: Optional[asyncio.Task] = None
+        self._idle_started_at: Optional[float] = None
         self._is_switching: bool = False
 
     @property
@@ -47,22 +48,32 @@ class SequentialScheduler:
         return len(self._queue)
 
     def get_status(self) -> dict:
+        idle_remaining = None
+        if self._idle_started_at is not None and settings.IDLE_UNLOAD_TIMEOUT > 0:
+            elapsed = time.time() - self._idle_started_at
+            idle_remaining = max(0, int(settings.IDLE_UNLOAD_TIMEOUT - elapsed))
+
         return {
             "active_model": self.active_model,
             "is_vllm_running": vllm_controller.is_running,
             "active_requests": self._active_requests,
             "queued_requests": len(self._queue),
             "is_switching": self._is_switching,
+            "idle_timeout_seconds": settings.IDLE_UNLOAD_TIMEOUT,
+            "idle_timer_active": bool(self._idle_task and not self._idle_task.done()),
+            "idle_seconds_remaining": idle_remaining,
         }
 
     def _cancel_idle_timer(self):
         if self._idle_task and not self._idle_task.done():
             self._idle_task.cancel()
             self._idle_task = None
+        self._idle_started_at = None
 
     def _start_idle_timer(self):
         self._cancel_idle_timer()
         if settings.IDLE_UNLOAD_TIMEOUT > 0:
+            self._idle_started_at = time.time()
             self._idle_task = asyncio.create_task(self._idle_worker())
 
     async def _idle_worker(self):
@@ -75,6 +86,8 @@ class SequentialScheduler:
                     await vllm_controller.stop()
         except asyncio.CancelledError:
             pass
+        finally:
+            self._idle_started_at = None
 
     async def acquire_slot(self, requested_model_id: str) -> None:
         """

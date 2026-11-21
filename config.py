@@ -28,8 +28,8 @@ class Settings:
     EMBEDDING_MODEL_ID: str = os.getenv("EMBEDDING_MODEL_ID", "nomic-ai/nomic-embed-text-v1.5")
 
     # Scheduler policies
-    # 0 = keep loaded permanently (no unload). Default: 1800s (30 minutes)
-    IDLE_UNLOAD_TIMEOUT: int = int(os.getenv("IDLE_UNLOAD_TIMEOUT", "1800"))
+    # 0 = keep loaded permanently (no unload). Default: 300s (5 minutes)
+    IDLE_UNLOAD_TIMEOUT: int = int(os.getenv("IDLE_UNLOAD_TIMEOUT", "300"))
     
     # Mock / Emulation mode (for non-GPU local testing without spawning vLLM)
     MOCK_MODE: bool = os.getenv("MOCK_MODE", "false").lower() in ("true", "1", "yes")

@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 
 from models_catalog import get_default_model, list_models, registry
 from scheduler import scheduler
-from vllm_controller import get_gpu_memory_info
+from vllm_controller import get_gpu_memory_info, vllm_controller
 
 router = APIRouter()
 
@@ -126,3 +126,23 @@ async def health_check():
             "gpu": get_gpu_memory_info(),
         }
     )
+
+
+@router.post("/api/models/unload")
+@router.post("/unload")
+async def unload_model():
+    """Immediately unload current active model and release GPU VRAM."""
+    current = scheduler.active_model
+    if not current and not vllm_controller.is_running:
+        return JSONResponse({
+            "status": "no_active_model",
+            "message": "No model currently loaded in GPU VRAM.",
+            "gpu": get_gpu_memory_info(),
+        })
+
+    await vllm_controller.stop()
+    return JSONResponse({
+        "status": "unloaded",
+        "unloaded_model": current,
+        "gpu": get_gpu_memory_info(),
+    })
