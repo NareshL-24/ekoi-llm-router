@@ -126,16 +126,21 @@ async def chat_ollama(request: OllamaChatRequest):
             detail=f"Model '{target_model}' not found or is not a text generation LLM.",
         )
 
-    try:
-        # Acquire sequential slot (will wait in queue if another model is loaded)
-        await scheduler.acquire_slot(target_model)
+    # Acquire sequential slot (will wait in queue if another model is loaded)
+    await scheduler.acquire_slot(target_model)
 
-        if settings.MOCK_MODE:
-            if request.stream:
-                return StreamingResponse(
-                    _mock_stream_ollama(target_model),
-                    media_type="application/x-ndjson",
-                )
+    if settings.MOCK_MODE:
+        if request.stream:
+            async def _cleanup_mock_stream():
+                try:
+                    async for chunk in _mock_stream_ollama(target_model):
+                        yield chunk
+                finally:
+                    await scheduler.release_slot(target_model)
+
+            return StreamingResponse(_cleanup_mock_stream(), media_type="application/x-ndjson")
+
+        try:
             return JSONResponse(
                 {
                     "model": target_model,
@@ -147,18 +152,22 @@ async def chat_ollama(request: OllamaChatRequest):
                     "done": True,
                 }
             )
+        finally:
+            await scheduler.release_slot(target_model)
 
-        # Forward to internal vLLM instance
-        openai_payload = _build_openai_payload_from_ollama(request, target_model)
-        vllm_url = f"{vllm_controller.base_url}/v1/chat/completions"
+    # Forward to internal vLLM instance
+    openai_payload = _build_openai_payload_from_ollama(request, target_model)
+    vllm_url = f"{vllm_controller.base_url}/v1/chat/completions"
 
-        if request.stream:
+    if request.stream:
+        try:
             client = httpx.AsyncClient(timeout=None)
             req = client.build_request("POST", vllm_url, json=openai_payload)
             resp = await client.send(req, stream=True)
             if resp.status_code != 200:
                 await resp.aclose()
                 await client.aclose()
+                await scheduler.release_slot(target_model)
                 raise HTTPException(status_code=resp.status_code, detail="vLLM streaming error")
 
             async def _cleanup_stream():
@@ -170,7 +179,12 @@ async def chat_ollama(request: OllamaChatRequest):
                     await scheduler.release_slot(target_model)
 
             return StreamingResponse(_cleanup_stream(), media_type="application/x-ndjson")
+        except Exception:
+            await scheduler.release_slot(target_model)
+            raise
 
+    # Non-streaming request: guaranteed slot release via finally block
+    try:
         async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(vllm_url, json=openai_payload)
             if resp.status_code != 200:
@@ -193,17 +207,13 @@ async def chat_ollama(request: OllamaChatRequest):
                     "done": True,
                 }
             )
-
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("Chat request failed: %s", exc, exc_info=True)
-        # If an error happens before or during non-streaming response, release slot immediately
-        if not request.stream or settings.MOCK_MODE:
-            await scheduler.release_slot(target_model)
         raise HTTPException(status_code=500, detail=str(exc))
-    else:
-        # If successful and not streaming, release slot now
-        if not request.stream or settings.MOCK_MODE:
-            await scheduler.release_slot(target_model)
+    finally:
+        await scheduler.release_slot(target_model)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -224,12 +234,13 @@ async def chat_openai(request: Request):
             detail=f"Model '{target_model}' not found or is not a text generation LLM.",
         )
 
-    try:
-        await scheduler.acquire_slot(target_model)
+    # Acquire sequential slot (will wait in queue if another model is loaded)
+    await scheduler.acquire_slot(target_model)
 
-        if settings.MOCK_MODE:
-            if is_stream:
-                async def _mock_openai_sse():
+    if settings.MOCK_MODE:
+        if is_stream:
+            async def _mock_openai_sse():
+                try:
                     chunk_id = f"chatcmpl-mock-{int(time.time())}"
                     words = ["Mock", " OpenAI", " stream", " output."]
                     for word in words:
@@ -242,9 +253,12 @@ async def chat_openai(request: Request):
                         }
                         yield f"data: {json.dumps(chunk)}\n\n".encode("utf-8")
                     yield b"data: [DONE]\n\n"
+                finally:
+                    await scheduler.release_slot(target_model)
 
-                return StreamingResponse(_mock_openai_sse(), media_type="text/event-stream")
+            return StreamingResponse(_mock_openai_sse(), media_type="text/event-stream")
 
+        try:
             return JSONResponse(
                 {
                     "id": f"chatcmpl-mock-{int(time.time())}",
@@ -263,16 +277,20 @@ async def chat_openai(request: Request):
                     ],
                 }
             )
+        finally:
+            await scheduler.release_slot(target_model)
 
-        vllm_url = f"{vllm_controller.base_url}/v1/chat/completions"
+    vllm_url = f"{vllm_controller.base_url}/v1/chat/completions"
 
-        if is_stream:
+    if is_stream:
+        try:
             client = httpx.AsyncClient(timeout=None)
             req = client.build_request("POST", vllm_url, json=body)
             resp = await client.send(req, stream=True)
             if resp.status_code != 200:
                 await resp.aclose()
                 await client.aclose()
+                await scheduler.release_slot(target_model)
                 raise HTTPException(status_code=resp.status_code, detail="vLLM stream error")
 
             async def _stream_openai():
@@ -285,18 +303,21 @@ async def chat_openai(request: Request):
                     await scheduler.release_slot(target_model)
 
             return StreamingResponse(_stream_openai(), media_type="text/event-stream")
+        except Exception:
+            await scheduler.release_slot(target_model)
+            raise
 
+    # Non-streaming request: guaranteed slot release via finally block
+    try:
         async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(vllm_url, json=body)
             if resp.status_code != 200:
                 raise HTTPException(status_code=resp.status_code, detail=resp.text)
             return JSONResponse(resp.json())
-
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("Chat completions failed: %s", exc, exc_info=True)
-        if not is_stream or settings.MOCK_MODE:
-            await scheduler.release_slot(target_model)
         raise HTTPException(status_code=500, detail=str(exc))
-    else:
-        if not is_stream or settings.MOCK_MODE:
-            await scheduler.release_slot(target_model)
+    finally:
+        await scheduler.release_slot(target_model)
