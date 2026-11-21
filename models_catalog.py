@@ -234,6 +234,12 @@ def resolve_vllm_command(model_entry: ModelEntry, port: Optional[int] = None) ->
         "--trust-remote-code",
     ])
 
+    if settings.DISABLE_FLASHINFER_AUTOTUNE:
+        cmd.append("--disable-flashinfer-autotune")
+
+    if settings.VLLM_ENFORCE_EAGER:
+        cmd.append("--enforce-eager")
+
     if model_entry.quantization_flag:
         cmd.extend(["--quantization", model_entry.quantization_flag])
 

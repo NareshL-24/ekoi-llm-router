@@ -21,12 +21,15 @@ class Settings:
     VLLM_STARTUP_TIMEOUT: int = int(os.getenv("VLLM_STARTUP_TIMEOUT", "180"))
     GPU_MEMORY_UTILIZATION: float = float(os.getenv("VLLM_GPU_MEMORY_UTILIZATION", "0.85"))
     MAX_MODEL_LEN: int = int(os.getenv("VLLM_MAX_MODEL_LEN", "8192"))
+    DISABLE_FLASHINFER_AUTOTUNE: bool = os.getenv("VLLM_DISABLE_FLASHINFER_AUTOTUNE", "true").lower() in ("true", "1", "yes")
+    VLLM_ENFORCE_EAGER: bool = os.getenv("VLLM_ENFORCE_EAGER", "false").lower() in ("true", "1", "yes")
 
     # Dedicated single embedding model on CPU
     EMBEDDING_MODEL_ID: str = os.getenv("EMBEDDING_MODEL_ID", "nomic-ai/nomic-embed-text-v1.5")
 
     # Scheduler policies
-    IDLE_UNLOAD_TIMEOUT: int = int(os.getenv("IDLE_UNLOAD_TIMEOUT", "300"))  # 5 minutes
+    # 0 = keep loaded permanently (no unload). Default: 1800s (30 minutes)
+    IDLE_UNLOAD_TIMEOUT: int = int(os.getenv("IDLE_UNLOAD_TIMEOUT", "1800"))
     
     # Mock / Emulation mode (for non-GPU local testing without spawning vLLM)
     MOCK_MODE: bool = os.getenv("MOCK_MODE", "false").lower() in ("true", "1", "yes")

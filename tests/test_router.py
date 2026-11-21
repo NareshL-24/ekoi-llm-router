@@ -18,7 +18,7 @@ os.environ["MOCK_MODE"] = "true"
 from models_catalog import get_default_model, get_model, list_models, registry, resolve_vllm_command
 from embedding_service import embedding_service
 from config import settings
-from vllm_controller import find_available_port, is_port_in_use, vllm_controller
+from vllm_controller import _should_suppress_vllm_log, find_available_port, is_port_in_use, vllm_controller
 
 
 class TestModelsCatalog(unittest.TestCase):
@@ -94,6 +94,14 @@ class TestModelsCatalog(unittest.TestCase):
         vllm_controller.active_port = 8003
         self.assertEqual(vllm_controller.base_url, f"http://{settings.VLLM_INTERNAL_HOST}:8003")
         vllm_controller.active_port = None
+
+    def test_log_suppression(self):
+        self.assertTrue(_should_suppress_vllm_log("Route: /v1/chat/completions, Methods: POST"))
+        self.assertTrue(_should_suppress_vllm_log("Attempted to load weight layers.0.mlp.down_proj.scales with dtype torch.float16"))
+        self.assertTrue(_should_suppress_vllm_log("FutureWarning: The pynvml package is deprecated."))
+        self.assertTrue(_should_suppress_vllm_log("Engine 000: Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 0 reqs"))
+        self.assertFalse(_should_suppress_vllm_log("Application startup complete."))
+        self.assertFalse(_should_suppress_vllm_log("Starting vLLM server on http://127.0.0.1:8002"))
 
 
 if __name__ == "__main__":

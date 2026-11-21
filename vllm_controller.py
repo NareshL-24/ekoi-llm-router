@@ -29,23 +29,52 @@ logger = logging.getLogger(__name__)
 def get_gpu_memory_info() -> dict:
     """Read GPU memory stats using NVML if available."""
     try:
-        import pynvml
+        import warnings
 
-        pynvml.nvmlInit()
-        device_count = pynvml.nvmlDeviceGetCount()
-        if device_count > 0:
-            handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-            mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
-            return {
-                "available": True,
-                "total_mb": round(mem_info.total / (1024**2), 1),
-                "used_mb": round(mem_info.used / (1024**2), 1),
-                "free_mb": round(mem_info.free / (1024**2), 1),
-                "utilization_pct": round((mem_info.used / mem_info.total) * 100, 1),
-            }
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=FutureWarning)
+            import pynvml
+
+            pynvml.nvmlInit()
+            device_count = pynvml.nvmlDeviceGetCount()
+            if device_count > 0:
+                handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+                mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+                return {
+                    "available": True,
+                    "total_mb": round(mem_info.total / (1024**2), 1),
+                    "used_mb": round(mem_info.used / (1024**2), 1),
+                    "free_mb": round(mem_info.free / (1024**2), 1),
+                    "utilization_pct": round((mem_info.used / mem_info.total) * 100, 1),
+                }
     except Exception:
         pass
     return {"available": False}
+
+
+def _should_suppress_vllm_log(line: str) -> bool:
+    """Filter out noisy, non-critical lines to keep console logs clean and readable."""
+    # Route list dump
+    if line.startswith("Route: /"):
+        return True
+    # Repetitive weight dtype conversion warnings
+    if "Attempted to load weight layers." in line:
+        return True
+    # Dependency deprecation warnings
+    if any(kw in line for kw in (
+        "FutureWarning",
+        "torch._opaque_base is deprecated",
+        "register_opaque_type is deprecated",
+        "typ='value' is deprecated",
+    )):
+        return True
+    # Idle periodic throughput heartbeats
+    if "Avg prompt throughput: 0.0" in line and "Running: 0 reqs" in line:
+        return True
+    # FlashInfer non-blocking precompiled advisory
+    if "flashinfer-cubin not installed" in line:
+        return True
+    return False
 
 
 def is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
@@ -198,9 +227,12 @@ class VLLMController:
                     decoded = line.decode("utf-8", errors="replace").strip()
                     if decoded:
                         self._recent_logs.append(decoded)
-                        if len(self._recent_logs) > 50:
+                        if len(self._recent_logs) > 100:
                             self._recent_logs.pop(0)
-                        logger.info("[vLLM] %s", decoded)
+                        if not _should_suppress_vllm_log(decoded):
+                            logger.info("[vLLM] %s", decoded)
+                        else:
+                            logger.debug("[vLLM] %s", decoded)
         except asyncio.CancelledError:
             pass
         except Exception as exc:

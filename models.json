@@ -27,7 +27,7 @@
       ],
       "path": "/home/ror-technologies/Quantization/models/Qwen2.5-7B-Instruct_INT4_AWQ",
       "quantization_flag": "awq",
-      "dtype": null,
+      "dtype": "float16",
       "extra_args": []
     },
     {
