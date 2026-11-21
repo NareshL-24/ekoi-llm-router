@@ -9,12 +9,16 @@ import asyncio
 import logging
 import os
 import signal
+import socket
 import sys
 import time
 from pathlib import Path
 from typing import Optional
 
-import httpx
+try:
+    import httpx
+except ImportError:
+    httpx = None
 
 from config import settings
 from models_catalog import ModelEntry, resolve_vllm_command
@@ -44,10 +48,48 @@ def get_gpu_memory_info() -> dict:
     return {"available": False}
 
 
+def is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
+    """Check if a TCP port is currently open and accepting connections."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.5)
+        return s.connect_ex((host, port)) == 0
+
+
+def cleanup_port_occupant(port: int) -> None:
+    """Attempt to terminate stale processes holding the target port (Linux only)."""
+    if sys.platform == "win32":
+        return
+    try:
+        import subprocess
+
+        logger.warning("Port %d is occupied. Attempting to terminate stale occupant...", port)
+        subprocess.run(["fuser", "-k", "-TERM", f"{port}/tcp"], capture_output=True, timeout=5)
+        time.sleep(0.5)
+        if is_port_in_use(port):
+            subprocess.run(["fuser", "-k", "-KILL", f"{port}/tcp"], capture_output=True, timeout=5)
+            time.sleep(0.5)
+    except Exception as exc:
+        logger.debug("Port cleanup tool fuser not available or failed: %s", exc)
+
+
+def find_available_port(start_port: int, host: str = "127.0.0.1", max_attempts: int = 50) -> int:
+    """Find an available TCP port starting from start_port up to start_port + max_attempts."""
+    for port in range(start_port, start_port + max_attempts):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                s.bind((host, port))
+                return port
+            except OSError:
+                continue
+    raise RuntimeError(f"Could not find an available port in range {start_port}-{start_port + max_attempts}")
+
+
 class VLLMController:
     def __init__(self):
         self.process: Optional[asyncio.subprocess.Process] = None
         self.current_model_id: Optional[str] = None
+        self.active_port: Optional[int] = None
         self.last_error: Optional[str] = None
         self._recent_logs: list[str] = []
         self._lock = asyncio.Lock()
@@ -55,6 +97,11 @@ class VLLMController:
     @property
     def is_running(self) -> bool:
         return self.process is not None and self.process.returncode is None
+
+    @property
+    def base_url(self) -> str:
+        port = self.active_port or settings.VLLM_INTERNAL_PORT
+        return f"http://{settings.VLLM_INTERNAL_HOST}:{port}"
 
     async def start(self, model: ModelEntry) -> bool:
         """Launch vLLM subprocess for the specified model and wait until healthy."""
@@ -72,10 +119,26 @@ class VLLMController:
                 logger.info("[MOCK_MODE] Simulating vLLM startup for model '%s'", model.id)
                 await asyncio.sleep(0.5)
                 self.current_model_id = model.id
+                self.active_port = settings.VLLM_INTERNAL_PORT
                 return True
 
-            cmd = resolve_vllm_command(model)
-            logger.info("Launching vLLM subprocess for model '%s' on port %d...", model.id, settings.VLLM_INTERNAL_PORT)
+            # Determine port: check if default port is free or clean up stale occupant
+            target_port = settings.VLLM_INTERNAL_PORT
+            if is_port_in_use(target_port, host=settings.VLLM_INTERNAL_HOST):
+                cleanup_port_occupant(target_port)
+
+            if is_port_in_use(target_port, host=settings.VLLM_INTERNAL_HOST):
+                self.active_port = find_available_port(target_port + 1, host=settings.VLLM_INTERNAL_HOST)
+                logger.warning(
+                    "Port %d remains occupied; dynamically assigned port %d for vLLM.",
+                    target_port,
+                    self.active_port,
+                )
+            else:
+                self.active_port = target_port
+
+            cmd = resolve_vllm_command(model, port=self.active_port)
+            logger.info("Launching vLLM subprocess for model '%s' on port %d...", model.id, self.active_port)
             logger.info("Command: %s", " ".join(cmd))
 
             gpu_before = get_gpu_memory_info()
@@ -88,11 +151,17 @@ class VLLMController:
             env["PYTHONUNBUFFERED"] = "1"
 
             try:
+                exec_kwargs = {
+                    "stdout": asyncio.subprocess.PIPE,
+                    "stderr": asyncio.subprocess.STDOUT,
+                    "env": env,
+                }
+                if sys.platform != "win32":
+                    exec_kwargs["preexec_fn"] = os.setsid
+
                 self.process = await asyncio.create_subprocess_exec(
                     *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.STDOUT,
-                    env=env,
+                    **exec_kwargs,
                 )
                 self.current_model_id = model.id
 
@@ -139,9 +208,13 @@ class VLLMController:
 
     async def _wait_for_health(self, timeout_seconds: int) -> bool:
         """Poll vLLM health endpoint until 200 OK."""
-        health_url = f"{settings.vllm_base_url}/health"
+        health_url = f"{self.base_url}/health"
         start_time = time.time()
         logger.info("Waiting for vLLM health check at %s (timeout: %ds)...", health_url, timeout_seconds)
+
+        if httpx is None:
+            logger.warning("httpx is not installed; skipping HTTP health polling.")
+            return True
 
         async with httpx.AsyncClient(timeout=3.0) as client:
             while time.time() - start_time < timeout_seconds:
@@ -175,11 +248,13 @@ class VLLMController:
         if settings.MOCK_MODE:
             logger.info("[MOCK_MODE] Simulated vLLM shutdown for '%s'", self.current_model_id)
             self.current_model_id = None
+            self.active_port = None
             self.process = None
             return
 
         if not self.is_running or self.process is None:
             self.current_model_id = None
+            self.active_port = None
             self.process = None
             return
 
@@ -188,7 +263,14 @@ class VLLMController:
 
         try:
             if sys.platform != "win32":
-                self.process.send_signal(signal.SIGTERM)
+                try:
+                    pgid = os.getpgid(pid)
+                    os.killpg(pgid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                except Exception as pg_err:
+                    logger.debug("killpg SIGTERM failed: %s; falling back to process.terminate()", pg_err)
+                    self.process.terminate()
             else:
                 self.process.terminate()
 
@@ -199,9 +281,16 @@ class VLLMController:
                 await asyncio.sleep(0.5)
 
             if self.process.returncode is None:
-                logger.warning("vLLM process did not exit gracefully; forcing SIGKILL...")
+                logger.warning("vLLM process did not exit gracefully; forcing SIGKILL on process group...")
                 if sys.platform != "win32":
-                    self.process.send_signal(signal.SIGKILL)
+                    try:
+                        pgid = os.getpgid(pid)
+                        os.killpg(pgid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    except Exception as pg_err:
+                        logger.debug("killpg SIGKILL failed: %s; falling back to process.kill()", pg_err)
+                        self.process.kill()
                 else:
                     self.process.kill()
                 await self.process.wait()
@@ -213,6 +302,7 @@ class VLLMController:
         finally:
             self.process = None
             self.current_model_id = None
+            self.active_port = None
 
             # Check released VRAM
             gpu_after = get_gpu_memory_info()

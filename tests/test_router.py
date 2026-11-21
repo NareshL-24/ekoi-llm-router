@@ -18,6 +18,7 @@ os.environ["MOCK_MODE"] = "true"
 from models_catalog import get_default_model, get_model, list_models, registry, resolve_vllm_command
 from embedding_service import embedding_service
 from config import settings
+from vllm_controller import find_available_port, is_port_in_use, vllm_controller
 
 
 class TestModelsCatalog(unittest.TestCase):
@@ -72,6 +73,27 @@ class TestModelsCatalog(unittest.TestCase):
         self.assertIn("awq", cmd)
         self.assertIn("--port", cmd)
         self.assertIn(str(settings.VLLM_INTERNAL_PORT), cmd)
+
+        # Test explicit custom port
+        cmd_custom = resolve_vllm_command(model, port=8005)
+        self.assertIn("--port", cmd_custom)
+        self.assertIn("8005", cmd_custom)
+
+    def test_port_utilities(self):
+        # find_available_port should return an integer >= 10000
+        free_port = find_available_port(10000)
+        self.assertIsInstance(free_port, int)
+        self.assertGreaterEqual(free_port, 10000)
+
+    def test_vllm_controller_dynamic_base_url(self):
+        # Default base_url
+        vllm_controller.active_port = None
+        self.assertEqual(vllm_controller.base_url, f"http://{settings.VLLM_INTERNAL_HOST}:{settings.VLLM_INTERNAL_PORT}")
+
+        # When active_port is assigned dynamically
+        vllm_controller.active_port = 8003
+        self.assertEqual(vllm_controller.base_url, f"http://{settings.VLLM_INTERNAL_HOST}:8003")
+        vllm_controller.active_port = None
 
 
 if __name__ == "__main__":

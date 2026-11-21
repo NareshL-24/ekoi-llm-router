@@ -200,7 +200,7 @@ def list_models(
     )
 
 
-def resolve_vllm_command(model_entry: ModelEntry) -> List[str]:
+def resolve_vllm_command(model_entry: ModelEntry, port: Optional[int] = None) -> List[str]:
     """Generate CLI command arguments for launching vLLM."""
     venv_bin = Path(sys.executable).parent
     venv_vllm = venv_bin / ("vllm.exe" if sys.platform == "win32" else "vllm")
@@ -218,13 +218,15 @@ def resolve_vllm_command(model_entry: ModelEntry) -> List[str]:
             model_entry.path,
         ]
 
+    use_port = port if port is not None else settings.VLLM_INTERNAL_PORT
+
     cmd.extend([
         "--served-model-name",
         model_entry.id,
         "--host",
         settings.VLLM_INTERNAL_HOST,
         "--port",
-        str(settings.VLLM_INTERNAL_PORT),
+        str(use_port),
         "--gpu-memory-utilization",
         str(settings.GPU_MEMORY_UTILIZATION),
         "--max-model-len",

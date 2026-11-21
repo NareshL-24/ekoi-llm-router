@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from config import settings
 from models_catalog import get_default_model, get_model
 from scheduler import scheduler
+from vllm_controller import vllm_controller
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +150,7 @@ async def chat_ollama(request: OllamaChatRequest):
 
         # Forward to internal vLLM instance
         openai_payload = _build_openai_payload_from_ollama(request, target_model)
-        vllm_url = f"{settings.vllm_base_url}/v1/chat/completions"
+        vllm_url = f"{vllm_controller.base_url}/v1/chat/completions"
 
         if request.stream:
             client = httpx.AsyncClient(timeout=None)
@@ -263,7 +264,7 @@ async def chat_openai(request: Request):
                 }
             )
 
-        vllm_url = f"{settings.vllm_base_url}/v1/chat/completions"
+        vllm_url = f"{vllm_controller.base_url}/v1/chat/completions"
 
         if is_stream:
             client = httpx.AsyncClient(timeout=None)
